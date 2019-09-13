@@ -8,7 +8,7 @@ class BootstrapLoader {
     private val bootstrapUrl = "https://raw.githubusercontent.com/runelite-extended/maven-repo/master/bootstrap.json"
     private val jsonText = URL(bootstrapUrl).readText()
 
-    fun loadBootStrap() : BootStrap {
-        with(Gson()) { return fromJson<BootStrap>(jsonText, BootStrap::class.java) }
+    fun loadBootStrap() : Bootstrap {
+        with(Gson()) { return fromJson<Bootstrap>(jsonText, Bootstrap::class.java) }
     }
 }

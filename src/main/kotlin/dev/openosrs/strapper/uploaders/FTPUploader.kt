@@ -1,5 +1,6 @@
 package dev.openosrs.strapper.uploaders
 
+import dev.openosrs.strapper.StrapController
 import mu.KotlinLogging
 import org.apache.commons.net.ftp.FTPClient
 import java.io.File
@@ -16,7 +17,7 @@ class FTPUploader(private val user: String, private val password: String) {
         ftp.login(user, password)
         ftp.bufferSize = 1024000
         ftp.sendDataSocketBufferSize = 1024000
-        return ftp.changeWorkingDirectory("rlplus/rlplus-repository/test")
+        return ftp.changeWorkingDirectory("rlplus/rlplus-repository/${StrapController.mode}")
     }
 
      fun upload(file: File): String {

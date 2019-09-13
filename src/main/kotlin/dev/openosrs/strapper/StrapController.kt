@@ -6,7 +6,7 @@ import dev.openosrs.strapper.uploaders.FTPUploader
 import mu.KotlinLogging
 import org.apache.commons.codec.digest.DigestUtils
 import org.eclipse.jgit.errors.RepositoryNotFoundException
-import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import java.io.File
 import java.nio.file.Files
@@ -35,8 +35,10 @@ class StrapController {
         try {
             val fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
                 .setMustExist(true).build()
-            val head = Repository.shortenRefName(fr.getRef("refs/heads/master").toString())
-            JOptionPane.showMessageDialog(null, head)
+            val head = with (RevWalk(fr))
+            {
+                this.parseCommit(fr.getRef("refs/heads/master").leaf.objectId).name
+            }
             val properties = Properties()
             properties.load(f.inputStream())
             val rlVersion = properties.getProperty("runelite.version")
@@ -55,7 +57,7 @@ class StrapController {
                         val size = file.length().toString()
                         val location = "http://download.tuxfamily.org/rlplus/$mode/$newName"
                         val hash = DigestUtils.sha512Hex(file.readBytes())
-                        bootstrap.artifacts = bootstrap.artifacts.plus(BootStrap.Artifact(hash, newName, location, size))
+                        bootstrap.artifacts = bootstrap.artifacts.plus(Bootstrap.Artifact(hash, newName, location, size))
                     } else {
                         val fName = "${s.split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
                         artifactFiles[fName] = File(File(dir, s), fName)
@@ -63,16 +65,17 @@ class StrapController {
                         val file = artifactFiles[fName]!!
                         val size = file.length().toString()
                         val location = "http://download.tuxfamily.org/rlplus/$mode/$newName"
-                        val hash = DigestUtils.sha512Hex(file.readBytes())
-                        bootstrap.artifacts = bootstrap.artifacts.plus(BootStrap.Artifact(hash, newName, location, size))
+                        val hash = String(DigestUtils.sha256(file.readBytes()))
+                        bootstrap.artifacts = bootstrap.artifacts.plus(Bootstrap.Artifact(hash, newName, location, size))
                     }
                 }
             }
             bootstrap.projectVersion = projectVersion
             bootstrap.buildCommit = head.toString()
-            bootstrap.client = BootStrap.Client("client", "", "jar",
+            bootstrap.client = Bootstrap.Client("client", "", "jar",
                 "net.runelite", "", rlVersion)
             Files.writeString(File("bootstrap.json").toPath(), Gson().newBuilder().setPrettyPrinting().create().toJson(bootstrap))
+            JOptionPane.showMessageDialog(null, "Bootstrapping is complete. Don't forget to PR the bootstrap file to the maven-repo")
         } catch (e: RepositoryNotFoundException) {
             e.printStackTrace()
         }

@@ -3,7 +3,7 @@ package dev.openosrs.strapper
 
 import com.google.gson.annotations.SerializedName
 
-data class BootStrap(
+data class Bootstrap(
     @SerializedName("artifacts")
     var artifacts: List<Artifact>,
     @SerializedName("buildCommit")
