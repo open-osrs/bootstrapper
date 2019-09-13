@@ -9,6 +9,7 @@ import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import java.io.File
+import java.nio.charset.Charset
 import java.nio.file.Files
 import java.util.*
 import javax.swing.JOptionPane
@@ -70,7 +71,7 @@ class StrapController {
                         val file = artifactFiles[fName]!!
                         val size = file.length().toString()
                         val location = "http://download.tuxfamily.org/rlplus/$mode/$newName"
-                        val hash = String(DigestUtils.sha256(file.readBytes()))
+                        val hash = DigestUtils.sha256Hex(file.readBytes())
                         bootstrap.artifacts =
                             bootstrap.artifacts.plus(Bootstrap.Artifact(hash, newName, location, size))
                     }
@@ -88,7 +89,9 @@ class StrapController {
                         "staging" -> "-staging"
                         else -> ""
                     }}.json"
-                ).toPath(), Gson().newBuilder().setPrettyPrinting().create().toJson(bootstrap)
+                ).toPath(),
+                Gson().newBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(bootstrap),
+                Charset.defaultCharset()
             )
             JOptionPane.showMessageDialog(
                 null,
