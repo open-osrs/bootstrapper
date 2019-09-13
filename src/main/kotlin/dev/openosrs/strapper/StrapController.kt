@@ -35,7 +35,7 @@ class StrapController {
         try {
             val fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
                 .setMustExist(true).build()
-            val head = with (RevWalk(fr))
+            val head = with(RevWalk(fr))
             {
                 this.parseCommit(fr.getRef("refs/heads/master").leaf.objectId).name
             }
@@ -45,19 +45,24 @@ class StrapController {
             val projectVersion = properties.getProperty("runelite.plus.version")
             val oldArtifacts = bootstrap.artifacts.filter { !it.name.contains("SNAPSHOT") }
             bootstrap.artifacts = oldArtifacts
-            val uploader = FTPUploader(JOptionPane.showInputDialog("Enter FTP login username"), JOptionPane.showInputDialog("Enter FTP password"))
+            val uploader = FTPUploader(
+                JOptionPane.showInputDialog("Enter FTP login username"),
+                JOptionPane.showInputDialog("Enter FTP password")
+            )
             val artifactFiles = HashMap<String, File>()
             if (uploader.connect()) {
                 for (s in artifactsList) {
                     if (s.contains("runelite-client")) {
-                        val fName = "${s.replace("runelite-", "").split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
+                        val fName =
+                            "${s.replace("runelite-", "").split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
                         artifactFiles[fName] = File(File(dir, s), fName)
                         val newName = uploader.upload(artifactFiles[fName]!!)
                         val file = artifactFiles[fName]!!
                         val size = file.length().toString()
                         val location = "http://download.tuxfamily.org/rlplus/$mode/$newName"
                         val hash = DigestUtils.sha512Hex(file.readBytes())
-                        bootstrap.artifacts = bootstrap.artifacts.plus(Bootstrap.Artifact(hash, newName, location, size))
+                        bootstrap.artifacts =
+                            bootstrap.artifacts.plus(Bootstrap.Artifact(hash, newName, location, size))
                     } else {
                         val fName = "${s.split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
                         artifactFiles[fName] = File(File(dir, s), fName)
@@ -66,16 +71,29 @@ class StrapController {
                         val size = file.length().toString()
                         val location = "http://download.tuxfamily.org/rlplus/$mode/$newName"
                         val hash = String(DigestUtils.sha256(file.readBytes()))
-                        bootstrap.artifacts = bootstrap.artifacts.plus(Bootstrap.Artifact(hash, newName, location, size))
+                        bootstrap.artifacts =
+                            bootstrap.artifacts.plus(Bootstrap.Artifact(hash, newName, location, size))
                     }
                 }
             }
             bootstrap.projectVersion = projectVersion
             bootstrap.buildCommit = head.toString()
-            bootstrap.client = Bootstrap.Client("client", "", "jar",
-                "net.runelite", "", rlVersion)
-            Files.writeString(File("bootstrap.json").toPath(), Gson().newBuilder().setPrettyPrinting().create().toJson(bootstrap))
-            JOptionPane.showMessageDialog(null, "Bootstrapping is complete. Don't forget to PR the bootstrap file to the maven-repo")
+            bootstrap.client = Bootstrap.Client(
+                "client", "", "jar",
+                "net.runelite", "", rlVersion
+            )
+            Files.writeString(
+                File(
+                    "bootstrap${when (mode) {
+                        "staging" -> "-staging"
+                        else -> ""
+                    }}.json"
+                ).toPath(), Gson().newBuilder().setPrettyPrinting().create().toJson(bootstrap)
+            )
+            JOptionPane.showMessageDialog(
+                null,
+                "Bootstrapping is complete. Don't forget to PR the bootstrap file to the maven-repo"
+            )
         } catch (e: RepositoryNotFoundException) {
             e.printStackTrace()
         }
