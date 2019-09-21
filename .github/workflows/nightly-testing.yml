@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@runelite-extended/runelite 
+      - uses: actions/checkout@https://github.com/runelite-extended/runelite.git
       - name: Set up JDK 11
         uses: actions/setup-java@v1
         with:
