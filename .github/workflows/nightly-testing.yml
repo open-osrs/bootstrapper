@@ -3,6 +3,7 @@ name: CI Nightly Artifacts
 on:
   schedule:
   - cron: 0 2 * * 1-5
+  push:
 jobs:
   build:
 
