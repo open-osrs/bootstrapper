@@ -20,15 +20,14 @@ jobs:
         run: gradlew build --stacktrace -x test -x checkstyleMain --console=plain
       - name: Testing
         run: gradlew test --stacktrace --console=plain
-      - name: Checking code conventions
-        run: gradlew checkstyleMain --console=plain
-    - run: |
+      - name: Other stuff
+      - run: |
         ./gradlew assemble -x test -x checkstyleMain
         ./gradlew build -x test -x checkstyleMain
         ./gradlew processResources
         ./gradlew shadowJar -x test -x checkstyleMain
                
-    - uses: actions/upload-artifact@v1.0.0
-      with:
+      - uses: actions/upload-artifact@v1.0.0
+        with:
           name: RuneLitePlus-Nightlies.jar
           path: ./runelite-client/build/libs
