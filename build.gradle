@@ -27,6 +27,7 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
     runtimeClasspath 'org.slf4j:slf4j-simple:1.7.28'
 
+    compile 'com.google.guava:guava:23.2-jre'
 }
 jar {
     manifest {
