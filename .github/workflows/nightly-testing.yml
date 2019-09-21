@@ -21,7 +21,6 @@ jobs:
         run: gradlew build --stacktrace -x test -x checkstyleMain --console=plain
       - name: Testing
         run: gradlew test --stacktrace --console=plain
-      - name: Other stuff
       - run: |
           ./gradlew assemble -x test -x checkstyleMain
           ./gradlew build -x test -x checkstyleMain
