@@ -1,10 +1,7 @@
 package dev.openosrs.strapper
 
-import dev.openosrs.strapper.exceptions.VersionException
-import java.io.File
-import javax.swing.JFileChooser
-import javax.swing.JOptionPane
-import kotlin.system.exitProcess
+import dev.openosrs.strapper.controllers.StrapController
+import tornadofx.launch
 
 fun main(args: Array<String>) {
     if (args.isNotEmpty())
@@ -12,9 +9,15 @@ fun main(args: Array<String>) {
         StrapController.mode = "nightly"
         StrapController.user = args[0]
         StrapController.p = args[1]
-    }
-    BootstrapLoader().loadBootStrap()
-    val controller = StrapController()
+        BootstrapLoader().loadBootStrap()
+        val controller = StrapController()
+
+        return
+    } else {
+
+        launch<GUIApp>()
+
+        /**
     when (StrapController.mode) {
         "nightly" -> controller.strapArtifacts(File("./"))
         else -> {
@@ -44,6 +47,7 @@ fun main(args: Array<String>) {
                 throw VersionException(Exception("Couldn't find git repo at selected directory"))
 
         }
+    } **/
     }
 
 
