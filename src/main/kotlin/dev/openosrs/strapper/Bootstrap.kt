@@ -6,9 +6,12 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
+import org.apache.commons.io.FileUtils
 import tornadofx.*
 import java.util.regex.Pattern
 import javax.json.JsonObject
+import tornadofx.getValue
+import tornadofx.setValue
 
 class Bootstrap : JsonModel {
 
@@ -65,6 +68,10 @@ class Bootstrap : JsonModel {
         val sizeProperty = SimpleStringProperty()
         var size: String by sizeProperty
 
+        val formattedSizeProperty = SimpleStringProperty()
+        var formattedSize by formattedSizeProperty
+
+
         override fun updateModel(json: JsonObject) {
             with(json) {
                 name = pattern.matcher(string("name")!!).results().findFirst().get().group(1)
@@ -72,6 +79,7 @@ class Bootstrap : JsonModel {
                 hash = string("hash")!!
                 path = string("path")!!
                 this@Artifact.size = string("size")!!
+                formattedSize = FileUtils.byteCountToDisplaySize(string("size")!!.toLong())
             }
         }
 
@@ -131,6 +139,9 @@ class Bootstrap : JsonModel {
 
 
 }
+
+
+
 
 
 

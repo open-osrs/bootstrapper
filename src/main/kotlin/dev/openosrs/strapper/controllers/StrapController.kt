@@ -4,13 +4,17 @@ package dev.openosrs.strapper.controllers
 import com.google.gson.Gson
 import dev.openosrs.strapper.Bootstrap
 import dev.openosrs.strapper.BootstrapLoader
+import dev.openosrs.strapper.events.NewBootstrapEvent
 import dev.openosrs.strapper.views.UI
+import javafx.scene.control.Tab
 import mu.KotlinLogging
 import org.apache.commons.codec.digest.DigestUtils
 import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.revwalk.RevWalk
+import org.eclipse.jgit.storage.file.FileRepository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import tornadofx.*
+import tornadofx.Stylesheet.Companion.tab
 import java.io.File
 import java.io.FileNotFoundException
 import java.nio.file.Files
@@ -23,7 +27,7 @@ import kotlin.streams.toList
 
 class StrapController() : Controller() {
     companion object {
-        var mode = "nightly"
+        var mode = ""
         var user = ""
         var p = ""
     }
@@ -36,8 +40,10 @@ class StrapController() : Controller() {
     lateinit var rlVersion: String
     lateinit var projectVersion: String
     private val bootstrapLoader = BootstrapLoader()
+
     val bootstrap = bootstrapLoader.loadBootStrap()
-    var artifacts = bootstrapLoader.getArtifacts()
+    private val newBootstrap = bootstrapLoader.loadBootStrap()
+    var artifacts = newBootstrap.artifacts
     private val libsDir = "runelite-client/build/lib"
     private val artifactsList = listOf(
             "runescape-api/build/libs", "runelite-client/build/libs", "injected-client/build/libs", "http-api/build/libs",
@@ -46,14 +52,14 @@ class StrapController() : Controller() {
 
 
     fun buildBootstrap(dir: File) {
-        bootstrap.artifacts.size
-        var client = File(File(dir, "runelite-client/build/libs"), "client-$projectVersion-${bootstrap.client.extension}")
+        newBootstrap.artifacts.size
+        var client = File(File(dir, "runelite-client/build/libs"), "client-$projectVersion-${newBootstrap.client.extension}")
         var libs = Files.list((File(dir, "runelite-client/build/lib").toPath()))
         for (f in libs.toList()) {
-            uiView.completion.plus((1 / bootstrap.artifacts.size) * 100)
+            uiView.completion.plus((1 / newBootstrap.artifacts.size) * 100)
             uiView.progressLabel.value = "Processing dependencies"
             val file = f.toFile()
-            bootstrap.artifacts.find { artifact -> artifact.name.startsWith(file.name.split("-")[0]) }.let { artifact ->
+            newBootstrap.artifacts.find { artifact -> artifact.name.startsWith(file.name.split("-")[0]) }.let { artifact ->
                 if (!(file.name.contains(artifact!!.version))) {
                     logger.info { artifact.toString() }
                 }
@@ -67,7 +73,7 @@ class StrapController() : Controller() {
                     var path = "https://github.com/runelite-extended/maven-repo/raw/master/$mode/${file.name}"
                     val hash = DigestUtils.sha256Hex(file.readBytes())
                     artifact.hashProperty.value = hash
-                    bootstrap.validationQueue.add(artifact)
+                    newBootstrap.validationQueue.add(artifact)
                 }
             }
         }
@@ -80,8 +86,15 @@ class StrapController() : Controller() {
         val f = File(dir, "runelite-client/build/resources/main/runelite.plus.properties")
 
         try {
-            val fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
-                    .setMustExist(true).build()
+            val fr: FileRepository
+            try {
+                 fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
+                        .setMustExist(true).build()
+            } catch(e: java.lang.Exception) {
+                showErrorMessage(e)
+                return
+            }
+
             val head = with(RevWalk(fr))
             {
                 this.parseCommit(fr.getRef("refs/heads/master").leaf.objectId).name
@@ -90,7 +103,7 @@ class StrapController() : Controller() {
             val properties = Properties()
             try {
                 properties.load(f.inputStream())
-            } catch (e: FileNotFoundException) {
+            } catch (e: Exception) {
                 showErrorMessage(e)
             }
 
@@ -99,7 +112,7 @@ class StrapController() : Controller() {
             rlVersion = properties.getProperty("runelite.version")
             projectVersion = properties.getProperty("runelite.plus.version")
             logger.info { "proceeding with runelite version $rlVersion and openOSRS version $projectVersion" }
-            val oldArtifacts = bootstrap.artifacts.filter { !it.name.contains("SNAPSHOT") }
+            val oldArtifacts = newBootstrap.artifacts.filter { !it.name.contains("SNAPSHOT") }
             uiView.completion.value = 0.1
             /** val uploader = when (mode) {
             "nighlty" -> FTPUploader(user, p)
@@ -108,7 +121,7 @@ class StrapController() : Controller() {
             //FTPUploader(JOptionPane.showInputDialog("Enter FTP login username"),
             //JOptionPane.showInputDialog("Enter FTP password"))
             }**/
-            bootstrap.client.extension = "jar"
+            newBootstrap.client.extension = "jar"
 
             val artifactFiles = HashMap<String, File>()
             if (projectVersion.isNotEmpty()) {
@@ -118,7 +131,11 @@ class StrapController() : Controller() {
                     if (s.contains("runelite-client")) {
                         val fName = "${s.replace("runelite-", "")
                                 .split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
-                        artifactFiles[fName] = File(File(dir, s), fName)
+                        try {
+                            artifactFiles[fName] = File(File(dir, s), fName)
+                        } catch (e: FileNotFoundException) {
+                            showErrorMessage(e)
+                        }
                         // var a = artifacts.filter { it.name == fName }.first()
                         var name = fName
                         val file = artifactFiles[fName]!!
@@ -130,8 +147,12 @@ class StrapController() : Controller() {
                     } else {
                         val fName = "${s.split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
                         logger.info { "Searching for $fName" }
-                        artifactFiles[fName] = File(File(dir, s), fName)
-                        // var a = artifacts.find {n -> n.name == fName }!!
+                        try {
+                            artifactFiles[fName] = File(File(dir, s), fName)
+                        } catch (e: FileNotFoundException) {
+                            showErrorMessage(e)
+                            break
+                        }                        // var a = artifacts.find {n -> n.name == fName }!!
                         val name = fName
                         val file = artifactFiles[fName]!!
                         val size = file.length().toString()
@@ -145,8 +166,10 @@ class StrapController() : Controller() {
                 logger.info { "Searching dependencies. . ." }
                 buildBootstrap(dir)
                 logger.info { "building bootstrapper file. . ." }
-                bootstrap.projectVersionProperty.value = projectVersion
-                bootstrap.buildCommitProperty.value = head.toString()
+                newBootstrap.projectVersionProperty.value = projectVersion
+                newBootstrap.buildCommitProperty.value = head.toString()
+                fire(NewBootstrapEvent(bootstrap))
+
                 // bootstrap.client = Bootstrap.Client("client", "", "jar",
                 //           "net.runelite", "", rlVersion)
                 val file = java.nio.file.Files.writeString(File("bootstrap-nightly.json").toPath(),
@@ -154,7 +177,7 @@ class StrapController() : Controller() {
                                 .newBuilder()
                                 .setPrettyPrinting()
                                 .create()
-                                .toJson(bootstrap))
+                                .toJson(newBootstrap))
                 if (mode == "nightly") {
                     // uploader.uploadStrap(file.toFile())
                 }
@@ -168,8 +191,9 @@ class StrapController() : Controller() {
         }
     }
 
-    fun showErrorMessage(e: Exception) {
+    private fun showErrorMessage(e: Exception) {
         JOptionPane.showMessageDialog(null, "File not found: ${e.message}")
+        e.printStackTrace()
     }
 
     fun validProjectDir(dir: File): Boolean {
@@ -184,8 +208,8 @@ class StrapController() : Controller() {
     }
 
     fun validate() {
-        while (bootstrap.validationQueue.isNotEmpty()) {
-            validate(bootstrap.validationQueue.poll())
+        while (newBootstrap.validationQueue.isNotEmpty()) {
+            validate(newBootstrap.validationQueue.poll())
         }
     }
 

@@ -6,9 +6,9 @@ plugins {
 }
 
 group 'dev.openosrs'
-version '1.2-SNAPSHOT'
+version '1.3-SNAPSHOT'
 
-sourceCompatibility = 8
+sourceCompatibility = 11
 mainClassName = 'dev.openosrs.strapper.StrapperKt'
 
 repositories {
@@ -27,6 +27,7 @@ dependencies {
     runtimeClasspath 'org.slf4j:slf4j-simple:1.7.28'
 
     compile 'com.google.guava:guava:23.2-jre'
+    compile 'commons-io:commons-io:2.6'
 }
 jar {
     manifest {
@@ -35,5 +36,5 @@ jar {
 }
 
 compileKotlin {
-    kotlinOptions.jvmTarget= "1.8"
+    kotlinOptions.jvmTarget= "11"
 }
