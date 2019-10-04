@@ -1,9 +1,10 @@
-package dev.openosrs.strapper
+package dev.openosrs.strapper.models
 
 
 import com.google.common.collect.Queues
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
+import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import org.apache.commons.io.FileUtils
@@ -12,10 +13,10 @@ import java.util.regex.Pattern
 import javax.json.JsonObject
 import tornadofx.getValue
 import tornadofx.setValue
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class Bootstrap : JsonModel {
 
-    var validationQueue = Queues.newConcurrentLinkedQueue<Bootstrap.Artifact>()
 
     val projectVersionProperty = SimpleStringProperty()
     var projectVersion by projectVersionProperty
@@ -28,7 +29,7 @@ class Bootstrap : JsonModel {
     val clientProperty = SimpleObjectProperty<Client>()
     var client by clientProperty
     val buildCommitProperty = SimpleStringProperty()
-    var buildCommit by buildCommitProperty
+    private var buildCommit by buildCommitProperty
     val artifacts: ObservableList<Artifact> = FXCollections.observableArrayList<Artifact>()
             .onChange {
                 if (it.next()) {
@@ -50,9 +51,22 @@ class Bootstrap : JsonModel {
         }
     }
 
+    override fun toJSON(json: JsonBuilder) {
+        with(json) {
+            add("projectVersion", projectVersion)
+            add("minimumLauncherVersion", minimumLauncherVersion)
+            add("launcherJvm11Arguments", launcherJvm11Arguments)
+            add("launcherArguments", launcherArguments)
+            add("clientJvmArguments", clientJvmArguments)
+            add("clientJvm9Arguments", clientJvm9Arguments)
+            add("client", client.toJSON())
+            add("buildCommit", buildCommit)
+            add("artifacts", artifacts.toJSON())
+        }
+    }
+
 
     class Artifact : JsonModel {
-        val pattern = Pattern.compile("^(.+?)-(\\d.*?)\\.jar$")
         val hashProperty = SimpleStringProperty()
         var hash: String by hashProperty
 
@@ -68,9 +82,8 @@ class Bootstrap : JsonModel {
         val sizeProperty = SimpleStringProperty()
         var size: String by sizeProperty
 
-        val formattedSizeProperty = SimpleStringProperty()
+        val formattedSizeProperty =  SimpleStringProperty()
         var formattedSize by formattedSizeProperty
-
 
         override fun updateModel(json: JsonObject) {
             with(json) {
@@ -83,15 +96,30 @@ class Bootstrap : JsonModel {
             }
         }
 
+
+
+        override fun toJSON(json: JsonBuilder) {
+            with (json) {
+                add("name", name + version)
+                add("path", path)
+                add("size", size)
+                add("hash", hash)
+            }
+        }
+
         fun rename(s: String) {
-            nameProperty.value = (pattern.matcher(s).results().findFirst().get().group(1))
-            versionProperty.value = pattern.matcher(s).results().findFirst().get().group(2)
+            nameProperty.value = (Companion.pattern.matcher(s).results().findFirst().get().group(1))
+            versionProperty.value = Companion.pattern.matcher(s).results().findFirst().get().group(2)
         }
 
         override fun toString(): String {
             return "Artifact(hashProperty=${hashProperty.value}, nameProperty=${nameProperty.value}," +
                     " versionProperty=${versionProperty.value}," +
                     " pathProperty=${pathProperty.value}, sizeProperty=${sizeProperty.value})"
+        }
+
+        companion object {
+            val pattern = Pattern.compile("^(.+?)-(\\d.*?)\\.jar$")
         }
     }
 
@@ -125,6 +153,7 @@ class Bootstrap : JsonModel {
         var classifier by classifierProperty
         val artifactIdProperty = SimpleStringProperty()
         var artifactId by artifactIdProperty
+
         override fun updateModel(json: JsonObject) {
             with(json) {
                 version = string("version")
@@ -135,9 +164,30 @@ class Bootstrap : JsonModel {
                 artifactId = string("artifactId")
             }
         }
+
+        override fun toJSON(json: JsonBuilder) {
+            with (json) {
+                add("version", version)
+                add("properties", properties)
+                add("groupId", groupId)
+                add("extension", extension)
+                add("classifier", classifier)
+                add("artifactId", artifactId)
+            }
+        }
+    }
+
+    companion object {
+        var validationQueue: ConcurrentLinkedQueue<Artifact> = Queues.newConcurrentLinkedQueue<Artifact>()
     }
 
 
+}
+
+fun Bootstrap.Artifact.sizePropertyChanged() {
+    sizeProperty.onChange {
+        formattedSize = FileUtils.byteCountToDisplaySize(size.toLong())
+    }
 }
 
 

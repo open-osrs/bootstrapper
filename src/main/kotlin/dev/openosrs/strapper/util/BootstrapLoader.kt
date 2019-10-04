@@ -1,5 +1,6 @@
-package dev.openosrs.strapper
+package dev.openosrs.strapper.util
 
+import dev.openosrs.strapper.models.Bootstrap
 import javafx.collections.ObservableList
 import tornadofx.*
 import java.net.URL

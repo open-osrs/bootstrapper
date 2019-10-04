@@ -1,25 +1,19 @@
 package dev.openosrs.strapper.views
 
-import dev.openosrs.strapper.Bootstrap
 import dev.openosrs.strapper.controllers.StrapController
 import dev.openosrs.strapper.events.NewBootstrapEvent
+import dev.openosrs.strapper.models.Bootstrap
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.collections.FXCollections
-import javafx.scene.control.ComboBox
 import javafx.scene.control.TabPane
 import javafx.scene.layout.VBox
-import javafx.scene.text.Text
 import javafx.stage.DirectoryChooser
-import org.apache.commons.io.FileUtils
 import tornadofx.*
-import tornadofx.Stylesheet.Companion.tab
-import tornadofx.Stylesheet.Companion.title
-import java.io.File
 
-class UI : View("My View") {
+class UI : View("OpenOSRS Bootstrapper") {
     private val controller by inject<StrapController>()
     val progressLabel = SimpleStringProperty("Click Update to start")
     override val root = VBox()
@@ -31,8 +25,8 @@ class UI : View("My View") {
         LIVE("live")
     }
 
-    val modeOptions = FXCollections.observableArrayList(StrapMode.values().toList())
-    val mode = SimpleObjectProperty<StrapMode>()
+    private val modeOptions = FXCollections.observableArrayList(StrapMode.values().toList())
+    private val mode = SimpleObjectProperty<StrapMode>()
             .onChange {
                 if (it != null) {
                     StrapController.mode = it.text
@@ -42,16 +36,16 @@ class UI : View("My View") {
     var completion = SimpleDoubleProperty(0.0)
 
 
-    val model: Bootstrap.ArtifactModel by inject()
+    private val model: Bootstrap.ArtifactModel by inject()
     private val enableValidate = SimpleBooleanProperty()
     private var enableBootstrap = SimpleBooleanProperty()
 
-    lateinit var tabpane: TabPane
+    private lateinit var tabpane: TabPane
 
 
     init {
         progressLabel.value = "Select a mode to get strappin"
-        title =  "OpenOSRS bootstrapper"
+        title = "OpenOSRS bootstrapper"
         with(root) {
             setWindowMinSize(width, width)
             setMinSize(800.0, height)
@@ -65,7 +59,7 @@ class UI : View("My View") {
                     }
                     text = "New Bootstrap"
                     setOnAction {
-                        var file = with(DirectoryChooser()) {
+                        val file = with(DirectoryChooser()) {
                             title = "Choose project dir"
                             showDialog(null)
                         }
@@ -106,9 +100,9 @@ class UI : View("My View") {
 
 
                 }
-                spacer {  }
+                spacer { }
                 text("Select a mode to get strappin") {
-                    style {  }
+                    style { }
                 }
             }
 
@@ -126,7 +120,7 @@ class UI : View("My View") {
                         autosize()
 
                         bindSelected(model)
-                   }
+                    }
                 }
                 subscribe<NewBootstrapEvent> { event ->
                     val bootstrap = event.bootstrap
@@ -134,7 +128,13 @@ class UI : View("My View") {
                     tab("New Bootstrap") {
                         enableValidate.value = true
                         tableview(artifacts) {
-
+                            column("Name", Bootstrap.Artifact::name).weightedWidth(25)
+                            column("Version", Bootstrap.Artifact::version).weightedWidth((25))
+                            column("Size", Bootstrap.Artifact::formattedSize).weightedWidth(.1)
+                            column("Path", Bootstrap.Artifact::path)
+                            column("Hash", Bootstrap.Artifact::hash).weightedWidth(.1)
+                            bindSelected(model)
+                            autosize()
                         }
                     }
                 }
@@ -144,7 +144,7 @@ class UI : View("My View") {
 
             autosize()
         }
-            }
+    }
 
 
 }

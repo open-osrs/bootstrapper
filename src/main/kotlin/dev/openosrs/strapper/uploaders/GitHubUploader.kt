@@ -6,7 +6,7 @@ import org.kohsuke.github.GitHubBuilder
 
 class GitHubUploader() {
     private val gh = GitHubBuilder()
-    private val uiView: UI by inject()
+    //private val uiView: UI by inject()
 
 
 

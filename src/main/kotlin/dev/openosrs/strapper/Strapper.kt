@@ -1,6 +1,7 @@
 package dev.openosrs.strapper
 
 import dev.openosrs.strapper.controllers.StrapController
+import dev.openosrs.strapper.util.BootstrapLoader
 import tornadofx.launch
 
 fun main(args: Array<String>) {
