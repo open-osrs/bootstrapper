@@ -64,6 +64,13 @@ class StrapController() : Controller() {
         }
     }
 
+    private fun addStaticDependencies() {
+        //bandage for static artifacts
+        newBootstrap.artifacts.addAll(bootstrap.artifacts.filter {
+                artifact -> artifact.path.contains("nexus.thatgamerblue.com")
+                || artifact.path.contains("natives") }.toList())
+    }
+
 
     private fun buildBootstrap(dir: File) {
         newBootstrap.launcherJvm11Arguments = bootstrap.launcherJvm11Arguments
@@ -78,7 +85,6 @@ class StrapController() : Controller() {
             processDependencyURL(it.path, it)
             Bootstrap.validationQueue.add(it)
         }
-        addBuildArtifacts(dir)
     }
 
 
@@ -142,6 +148,9 @@ class StrapController() : Controller() {
 
             if (projectVersion.isNotEmpty()) {
                 buildBootstrap(dir)
+                addStaticDependencies()
+                addBuildArtifacts(dir)
+                completeStrapping()
                 newBootstrap.projectVersionProperty.value = projectVersion
                 newBootstrap.buildCommitProperty.value = head.toString()
 
@@ -222,7 +231,6 @@ class StrapController() : Controller() {
             }
             logger.info { "found artifact $s" }
         }
-        completeStrapping()
     }
 
     private fun showErrorMessage(e: Exception) {
