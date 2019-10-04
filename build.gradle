@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'dev.openosrs'
-version '1.1-SNAPSHOT'
+version '1.5-SNAPSHOT'
 
 sourceCompatibility = 11
 mainClassName = 'dev.openosrs.strapper.StrapperKt'
@@ -14,20 +14,21 @@ mainClassName = 'dev.openosrs.strapper.StrapperKt'
 repositories {
     mavenCentral()
     jcenter()
-
 }
 
 dependencies {
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    implementation 'no.tornado:tornadofx:1.7.17'
     compile group: 'commons-net', name: 'commons-net', version: '3.6'
     compile 'com.google.code.gson:gson:2.8.5'
     compile 'io.github.microutils:kotlin-logging:1.7.6'
     compile group: 'org.eclipse.jgit', name: 'org.eclipse.jgit', version: '2.2.0.201212191850-r'
     compile group: 'commons-codec', name: 'commons-codec', version: '1.5'
+    compile 'org.kohsuke:github-api:1.95'
     testCompile group: 'junit', name: 'junit', version: '4.12'
     runtimeClasspath 'org.slf4j:slf4j-simple:1.7.28'
 
     compile 'com.google.guava:guava:23.2-jre'
+    compile 'commons-io:commons-io:2.6'
 }
 jar {
     manifest {
@@ -36,9 +37,5 @@ jar {
 }
 
 compileKotlin {
-
-    kotlinOptions.jvmTarget = "11"
-}
-compileTestKotlin {
-    kotlinOptions.jvmTarget = "11"
+    kotlinOptions.jvmTarget= "11"
 }
