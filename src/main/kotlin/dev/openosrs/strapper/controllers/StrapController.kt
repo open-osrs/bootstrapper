@@ -21,6 +21,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
+import javax.json.JsonStructure
 import javax.swing.JOptionPane
 import kotlin.collections.HashMap
 
@@ -117,6 +118,7 @@ class StrapController() : Controller() {
             logger.info { "attempting to load properties resource. . ." }
             rlVersion = properties.getProperty("runelite.version")
             projectVersion = properties.getProperty("runelite.plus.version")
+            val minimumLauncherVersion = properties.getProperty("launcher.version")
             logger.info { "proceeding with runelite version $rlVersion and openOSRS version $projectVersion" }
             val oldArtifacts = newBootstrap.artifacts.filter { !it.name.contains("SNAPSHOT") }
             uiView.completion.value = 0.1
@@ -132,6 +134,8 @@ class StrapController() : Controller() {
             newBootstrap.clientJvmArguments = bootstrap.clientJvmArguments
             newBootstrap.launcherArguments = bootstrap.launcherArguments
             newBootstrap.launcherJvm11Arguments = bootstrap.launcherJvm11Arguments
+            newBootstrap.minimumLauncherVersion = minimumLauncherVersion
+            newBootstrap.client.version = rlVersion
             newBootstrap.client.extension = "jar"
 
             newBootstrap.artifacts.clear()
@@ -149,6 +153,7 @@ class StrapController() : Controller() {
 
     private fun completeStrapping() {
         fire(NewBootstrapEvent(newBootstrap))
+        log.info(newBootstrap.toJSON(JsonBuilder()).toString())
         newBootstrap.save(Path.of("out/bootstrap-$mode.json"))
         if (mode == "nightly") {
             // uploader.uploadStrap(file.toFile())

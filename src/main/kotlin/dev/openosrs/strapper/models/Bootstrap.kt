@@ -14,6 +14,7 @@ import javax.json.JsonObject
 import tornadofx.getValue
 import tornadofx.setValue
 import java.util.concurrent.ConcurrentLinkedQueue
+import javax.json.JsonArray
 
 class Bootstrap : JsonModel {
 
@@ -22,10 +23,10 @@ class Bootstrap : JsonModel {
     var projectVersion by projectVersionProperty
     val minimumLauncherVersionProperty = SimpleStringProperty()
     var minimumLauncherVersion by minimumLauncherVersionProperty
-    var launcherJvm11Arguments = FXCollections.observableArrayList<String>()
-    var launcherArguments = FXCollections.observableArrayList<String>()
-    var clientJvmArguments = FXCollections.observableArrayList<String>()
-    var clientJvm9Arguments = FXCollections.observableArrayList<String>()
+    var launcherJvm11Arguments = JsonArray.EMPTY_JSON_ARRAY
+    var launcherArguments = JsonArray.EMPTY_JSON_ARRAY
+    var clientJvmArguments = JsonArray.EMPTY_JSON_ARRAY
+    var clientJvm9Arguments = JsonArray.EMPTY_JSON_ARRAY
     val clientProperty = SimpleObjectProperty<Client>()
     var client by clientProperty
     val buildCommitProperty = SimpleStringProperty()
@@ -41,10 +42,10 @@ class Bootstrap : JsonModel {
         with(json) {
             projectVersion = string("projectVersion")
             minimumLauncherVersion = string("minimumLauncherVersion")
-            launcherJvm11Arguments.setAll(getJsonArray("launcherJvm11Arguments").map { toString() })
-            launcherArguments.setAll(getJsonArray("launcherArguments").map { toString() })
-            clientJvmArguments.setAll(getJsonArray("clientJvmArguments").map { toString() })
-            clientJvm9Arguments.setAll(getJsonArray("clientJvm9Arguments").map { toString() })
+            launcherJvm11Arguments = getJsonArray("launcherJvm11Arguments")
+            launcherArguments = getJsonArray("launcherArguments")
+            clientJvmArguments = getJsonArray("clientJvmArguments")
+            clientJvm9Arguments = getJsonArray("clientJvm9Arguments")
             client = jsonObject("client")?.toModel()
             buildCommit = string("buildCommit")
             artifacts.setAll(getJsonArray("artifacts").toModel())
