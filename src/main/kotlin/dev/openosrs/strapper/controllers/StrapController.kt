@@ -168,6 +168,7 @@ class StrapController() : Controller() {
         Files.createDirectory(Paths.get("out"))
         val artifactFiles = HashMap<String, File>()
         for (s in artifactsList) {
+            val artifactRepo = "https://github.com/runelite-extended/hosting/raw/master/"
             if (s.contains("runelite-client")) {
                 val fName = "${s.replace("runelite-", "")
                         .split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
@@ -181,7 +182,7 @@ class StrapController() : Controller() {
                 val file = artifactFiles[fName]!!
                 Files.copy(file.toPath(), File("out", file.name).toPath())
                 var size = file.length().toString()
-                var path = "https://github.com/runelite-extended/maven-repo/raw/master/$mode/${file.name}"
+                var path = "$artifactRepo$mode/${file.name}"
                 var hash = DigestUtils.sha256Hex(file.readBytes())
                 logger.info { "name: $name \n size: $size \n path: $path \n $hash: $hash \n" }
                 with(Bootstrap.Artifact()) {
@@ -206,7 +207,7 @@ class StrapController() : Controller() {
                 val file = artifactFiles[fName]!!
                 Files.copy(file.toPath(), File("out", file.name).toPath())
                 val size = file.length().toString()
-                val path = "https://github.com/runelite-extended/maven-repo/raw/master/$mode/${file.name}"
+                val path = "$artifactRepo$mode/${file.name}"
                 val hash = DigestUtils.sha256Hex(file.readBytes())
                 logger.info { "name: $name \n size: $size \n path: $path \n $hash: $hash \n" }
                 with(Bootstrap.Artifact()) {
