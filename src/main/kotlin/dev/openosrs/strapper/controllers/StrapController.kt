@@ -51,7 +51,8 @@ class StrapController() : Controller() {
             "runelite-api/build/libs"
     )
 
-    private fun processDependencyURL(url: String, a: Bootstrap.Artifact) {
+    fun processDependencyURL(url: String, a: Bootstrap.Artifact) {
+
         FileUtils.copyURLToFile(
                 URL(url),
                 File(a.name),
@@ -64,49 +65,52 @@ class StrapController() : Controller() {
         }
     }
 
-    private fun addStaticDependencies() {
+    fun addStaticDependencies() {
         //bandage for static artifacts
-        newBootstrap.artifacts.addAll(bootstrap.artifacts.filter {
-                artifact -> artifact.path.contains("nexus.thatgamerblue.com")
-                || artifact.path.contains("natives") }.toList())
+        runLater {
+            newBootstrap.artifacts.addAll(bootstrap.artifacts.filter { artifact ->
+                artifact.path.contains("nexus.thatgamerblue.com")
+                        || artifact.path.contains("natives")
+            }.toList())
+        }
     }
 
 
-    private fun buildBootstrap(dir: File) {
-        newBootstrap.launcherJvm11Arguments = bootstrap.launcherJvm11Arguments
-        var client = File(File(dir, "runelite-client/build/libs"),
-                "client-$projectVersion-${newBootstrap.client.extension}")
+    fun buildBootstrap(dir: File) {
+        runLater {
+            newBootstrap.launcherJvm11Arguments = bootstrap.launcherJvm11Arguments
+            var client = File(
+                File(dir, "runelite-client/build/libs"),
+                "client-$projectVersion-${newBootstrap.client.extension}"
+            )
 
-        newBootstrap.artifacts.addAll(DependencyParser(dir).artifacts)
-        newBootstrap.artifacts.forEach {
-            uiView.completion.value += 0.9 * (newBootstrap.artifacts.indexOf(it)/newBootstrap.artifacts.size)
-            uiView.progressLabel.set("Processing dependency " +
-                    "${newBootstrap.artifacts.indexOf(it)}/${newBootstrap.artifacts.size}")
-            processDependencyURL(it.path, it)
-            Bootstrap.validationQueue.add(it)
+            newBootstrap.artifacts.addAll(DependencyParser(dir).artifacts)
+            newBootstrap.artifacts.forEach {
+                uiView.completion.value += 0.9 * ((newBootstrap.artifacts.indexOf(it) + 1) / newBootstrap.artifacts.size)
+                uiView.progressLabel.set(
+                    "Processing dependency " +
+                            "${newBootstrap.artifacts.indexOf(it)}/${newBootstrap.artifacts.size}"
+                )
+                processDependencyURL(it.path, it)
+                Bootstrap.validationQueue.add(it)
+            }
         }
     }
 
 
     fun strapArtifacts(dir: File) {
-        if (Files.exists(File("out").toPath())) {
-            FileUtils.cleanDirectory(File("out"))
-            FileUtils.deleteDirectory(File("out"))
-        }
-        uiView.completion.value = .05
-        uiView.progressLabel.value = "attempting to strap artifacts from directory ${dir.name}"
-        val f = File(dir, "runelite-client/build/resources/main/runelite.plus.properties")
-
-        try {
-            val fr: FileRepository
-            try {
-                fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
-                        .setMustExist(true).build()
-
-            } catch (e: java.lang.Exception) {
-                showErrorMessage(e)
-                return
+        runLater {
+            if (Files.exists(File("out").toPath())) {
+                FileUtils.cleanDirectory(File("out"))
+                FileUtils.deleteDirectory(File("out"))
             }
+            uiView.completion.value = .05
+            uiView.progressLabel.value = "attempting to strap artifacts from directory ${dir.name}"
+            val f = File(dir, "runelite-client/build/resources/main/open.osrs.properties")
+            val fr: FileRepository
+            fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
+                .setMustExist(true).build()
+
 
             val head = with(RevWalk(fr))
             {
@@ -123,7 +127,7 @@ class StrapController() : Controller() {
 
             logger.info { "attempting to load properties resource. . ." }
             rlVersion = properties.getProperty("runelite.version")
-            projectVersion = properties.getProperty("runelite.plus.version")
+            projectVersion = properties.getProperty("open.osrs.version")
             val minimumLauncherVersion = properties.getProperty("launcher.version")
             logger.info { "proceeding with runelite version $rlVersion and openOSRS version $projectVersion" }
             val oldArtifacts = newBootstrap.artifacts.filter { !it.name.contains("SNAPSHOT") }
@@ -147,89 +151,89 @@ class StrapController() : Controller() {
             newBootstrap.artifacts.clear()
 
             if (projectVersion.isNotEmpty()) {
-                buildBootstrap(dir)
-                addStaticDependencies()
-                addBuildArtifacts(dir)
-                completeStrapping()
                 newBootstrap.projectVersionProperty.value = projectVersion
                 newBootstrap.buildCommitProperty.value = head.toString()
 
             }
-        } catch (e: RepositoryNotFoundException) {
-            e.printStackTrace()
         }
     }
 
-    private fun completeStrapping() {
-        fire(NewBootstrapEvent(newBootstrap))
-        log.info(newBootstrap.toJSON(JsonBuilder()).toString())
-        newBootstrap.save(Path.of("out/bootstrap-$mode.json"))
-        if (mode == "nightly") {
-            // uploader.uploadStrap(file.toFile())
-        }
-        if (mode != "nightly") {
-            JOptionPane.showMessageDialog(null,
-                    "Bootstrapping is complete. Don't forget to PR the bootstrap file to the maven-repo")
-        }
-    }
-
-    private fun addBuildArtifacts(dir: File) {
-        Files.createDirectory(Paths.get("out"))
-        val artifactFiles = HashMap<String, File>()
-        for (s in artifactsList) {
-            val artifactRepo = "https://github.com/runelite-extended/hosting/raw/master/"
-            if (s.contains("runelite-client")) {
-                val fName = "${s.replace("runelite-", "")
-                        .split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
-                try {
-                    artifactFiles[fName] = File(File(dir, s), fName)
-                } catch (e: FileNotFoundException) {
-                    showErrorMessage(e)
-                }
-                // var a = artifacts.filter { it.name == fName }.first()
-                val name = fName
-                val file = artifactFiles[fName]!!
-                Files.copy(file.toPath(), File("out", file.name).toPath())
-                var size = file.length().toString()
-                var path = "$artifactRepo$mode/${file.name}"
-                var hash = DigestUtils.sha256Hex(file.readBytes())
-                logger.info { "name: $name \n size: $size \n path: $path \n $hash: $hash \n" }
-                with(Bootstrap.Artifact()) {
-                    this.name = name
-                    this.size = size
-                    this.path = path
-                    this.hash = hash
-                    this.rename(this.name)
-                    newBootstrap.artifacts.add(this)
-                }
-
-            } else {
-                val fName = "${s.split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
-                logger.info { "Searching for $fName" }
-                try {
-                    artifactFiles[fName] = File(File(dir, s), fName)
-                } catch (e: FileNotFoundException) {
-                    showErrorMessage(e)
-                    break
-                }                        // var a = artifacts.find {n -> n.name == fName }!!
-                val name = fName
-                val file = artifactFiles[fName]!!
-                Files.copy(file.toPath(), File("out", file.name).toPath())
-                val size = file.length().toString()
-                val path = "$artifactRepo$mode/${file.name}"
-                val hash = DigestUtils.sha256Hex(file.readBytes())
-                logger.info { "name: $name \n size: $size \n path: $path \n $hash: $hash \n" }
-                with(Bootstrap.Artifact()) {
-                    this.name = name
-                    this.size = size
-                    this.path = path
-                    this.hash = hash
-                    this.rename(this.name)
-
-                    newBootstrap.artifacts.add(this)
-                }
+    fun completeStrapping() {
+        runLater {
+            fire(NewBootstrapEvent(newBootstrap))
+            log.info(newBootstrap.toJSON(JsonBuilder()).toString())
+            newBootstrap.save(Path.of("out/bootstrap-$mode.json"))
+            if (mode == "nightly") {
+                // uploader.uploadStrap(file.toFile())
             }
-            logger.info { "found artifact $s" }
+            if (mode != "nightly") {
+                JOptionPane.showMessageDialog(
+                    null,
+                    "Bootstrapping is complete. Don't forget to PR the bootstrap file to the maven-repo"
+                )
+            }
+        }
+    }
+
+    fun addBuildArtifacts(dir: File) {
+        runLater {
+            Files.createDirectory(Paths.get("out"))
+            val artifactFiles = HashMap<String, File>()
+            for (s in artifactsList) {
+                val artifactRepo = "https://github.com/runelite-extended/hosting/raw/master/"
+                if (s.contains("runelite-client")) {
+                    val fName = "${s.replace("runelite-", "")
+                        .split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
+                    try {
+                        artifactFiles[fName] = File(File(dir, s), fName)
+                    } catch (e: FileNotFoundException) {
+                        showErrorMessage(e)
+                    }
+                    // var a = artifacts.filter { it.name == fName }.first()
+                    val name = fName
+                    val file = artifactFiles[fName]!!
+                    Files.copy(file.toPath(), File("out", file.name).toPath())
+                    var size = file.length().toString()
+                    var path = "$artifactRepo$mode/${file.name}"
+                    var hash = DigestUtils.sha256Hex(file.readBytes())
+                    logger.info { "name: $name \n size: $size \n path: $path \n $hash: $hash \n" }
+                    with(Bootstrap.Artifact()) {
+                        this.name = name
+                        this.size = size
+                        this.path = path
+                        this.hash = hash
+                        this.rename(this.name)
+                        newBootstrap.artifacts.add(this)
+                    }
+
+                } else {
+                    val fName = "${s.split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
+                    logger.info { "Searching for $fName" }
+                    try {
+                        artifactFiles[fName] = File(File(dir, s), fName)
+                    } catch (e: FileNotFoundException) {
+                        showErrorMessage(e)
+                        break
+                    }                        // var a = artifacts.find {n -> n.name == fName }!!
+                    val name = fName
+                    val file = artifactFiles[fName]!!
+                    Files.copy(file.toPath(), File("out", file.name).toPath())
+                    val size = file.length().toString()
+                    val path = "$artifactRepo$mode/${file.name}"
+                    val hash = DigestUtils.sha256Hex(file.readBytes())
+                    logger.info { "name: $name \n size: $size \n path: $path \n $hash: $hash \n" }
+                    with(Bootstrap.Artifact()) {
+                        this.name = name
+                        this.size = size
+                        this.path = path
+                        this.hash = hash
+                        this.rename(this.name)
+
+                        newBootstrap.artifacts.add(this)
+                    }
+                }
+                logger.info { "found artifact $s" }
+            }
         }
     }
 

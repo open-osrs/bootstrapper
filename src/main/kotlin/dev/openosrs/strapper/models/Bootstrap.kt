@@ -17,20 +17,24 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import javax.json.JsonArray
 
 class Bootstrap : JsonModel {
-
-
     val projectVersionProperty = SimpleStringProperty()
-    var projectVersion by projectVersionProperty
+    private var projectVersion: String by projectVersionProperty
+
     val minimumLauncherVersionProperty = SimpleStringProperty()
     var minimumLauncherVersion by minimumLauncherVersionProperty
+
     var launcherJvm11Arguments = JsonArray.EMPTY_JSON_ARRAY
     var launcherArguments = JsonArray.EMPTY_JSON_ARRAY
+
     var clientJvmArguments = JsonArray.EMPTY_JSON_ARRAY
     var clientJvm9Arguments = JsonArray.EMPTY_JSON_ARRAY
+
     val clientProperty = SimpleObjectProperty<Client>()
-    var client by clientProperty
+    var client: Client by clientProperty
+
     val buildCommitProperty = SimpleStringProperty()
     private var buildCommit by buildCommitProperty
+
     val artifacts: ObservableList<Artifact> = FXCollections.observableArrayList<Artifact>()
             .onChange {
                 if (it.next()) {
@@ -40,13 +44,13 @@ class Bootstrap : JsonModel {
 
     override fun updateModel(json: JsonObject) {
         with(json) {
-            projectVersion = string("projectVersion")
+            projectVersion = this.string("projectVersion")!!
             minimumLauncherVersion = string("minimumLauncherVersion")
             launcherJvm11Arguments = getJsonArray("launcherJvm11Arguments")
             launcherArguments = getJsonArray("launcherArguments")
             clientJvmArguments = getJsonArray("clientJvmArguments")
             clientJvm9Arguments = getJsonArray("clientJvm9Arguments")
-            client = jsonObject("client")?.toModel()
+            client = jsonObject("client")?.toModel()!!
             buildCommit = string("buildCommit")
             artifacts.setAll(getJsonArray("artifacts").toModel())
         }
@@ -68,6 +72,9 @@ class Bootstrap : JsonModel {
 
 
     class Artifact : JsonModel {
+
+
+
         val hashProperty = SimpleStringProperty()
         var hash: String by hashProperty
 
@@ -120,7 +127,7 @@ class Bootstrap : JsonModel {
         }
 
         companion object {
-            val pattern = Pattern.compile("^(.+?)-(\\d.*?)\\.jar$")
+            val pattern: Pattern = Pattern.compile("^(.+?)-(\\d.*?)\\.jar$")!!
         }
     }
 
@@ -185,11 +192,8 @@ class Bootstrap : JsonModel {
 
 }
 
-fun Bootstrap.Artifact.sizePropertyChanged() {
-    sizeProperty.onChange {
-        formattedSize = FileUtils.byteCountToDisplaySize(size.toLong())
-    }
-}
+
+
 
 
 

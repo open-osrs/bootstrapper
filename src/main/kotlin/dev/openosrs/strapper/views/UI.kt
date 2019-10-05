@@ -15,14 +15,13 @@ import tornadofx.*
 
 class UI : View("OpenOSRS Bootstrapper") {
     private val controller by inject<StrapController>()
-    val progressLabel = SimpleStringProperty("Click Update to start")
     override val root = VBox()
 
     enum class StrapMode(val text: String) {
         TEST("test"),
         STAGING("staging"),
         NIGHTLY("nightly"),
-        LIVE("live")
+        STABLE("stable")
     }
 
     private val modeOptions = FXCollections.observableArrayList(StrapMode.values().toList())
@@ -34,6 +33,7 @@ class UI : View("OpenOSRS Bootstrapper") {
             }
 
     var completion = SimpleDoubleProperty(0.0)
+    var progressLabel = SimpleStringProperty("Click Update to start")
 
 
     private val model: Bootstrap.ArtifactModel by inject()
@@ -63,11 +63,19 @@ class UI : View("OpenOSRS Bootstrapper") {
                             title = "Choose project dir"
                             showDialog(null)
                         }
-                        runAsync {
+                        runAsyncWithProgress {
                             controller.strapArtifacts(file)
+                            controller.addStaticDependencies()
+                            controller.buildBootstrap(file)
+                            controller.addBuildArtifacts(file)
+                            controller.completeStrapping()
+
                         }
-                    }
-                }
+
+                            }
+                        }
+
+
 
                 val validateButton = button {
                     style {
@@ -101,8 +109,11 @@ class UI : View("OpenOSRS Bootstrapper") {
 
                 }
                 spacer { }
-                text("Select a mode to get strappin") {
-                    style { }
+                val progress = label {
+                    text("Select a mode to get strappin") {
+                        style { }
+                    }
+                    bind(progressLabel)
                 }
             }
 

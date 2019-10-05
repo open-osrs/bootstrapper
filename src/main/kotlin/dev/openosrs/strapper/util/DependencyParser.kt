@@ -14,8 +14,8 @@ class DependencyParser(dir: File) {
         var atRuntime = false
         dependencyDeclaration.forEachLine { line: String ->
 
-            if (line.contains("+---") && !line.contains("project")) {
-                stringDependencies.add(line.split("+--- ")[1].split(" ")[0])
+            if ((line.contains("+---") || line.contains("\\---")) && !line.contains("project")) {
+                stringDependencies.add(line.split("--- ")[1].split(" ")[0])
             }
 
         }
