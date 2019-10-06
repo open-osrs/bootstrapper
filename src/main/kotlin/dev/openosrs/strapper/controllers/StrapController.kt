@@ -1,6 +1,7 @@
 package dev.openosrs.strapper.controllers
 
 
+import dev.openosrs.strapper.events.ProgressLabelUpdateEvent
 import dev.openosrs.strapper.events.NewBootstrapEvent
 import dev.openosrs.strapper.models.Bootstrap
 import dev.openosrs.strapper.util.BootstrapLoader
@@ -9,6 +10,7 @@ import dev.openosrs.strapper.views.UI
 import mu.KotlinLogging
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.io.FileUtils
+import org.apache.commons.lang3.ArrayUtils
 import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.storage.file.FileRepository
@@ -21,7 +23,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
-import javax.json.JsonStructure
 import javax.swing.JOptionPane
 import kotlin.collections.HashMap
 
@@ -35,23 +36,20 @@ class StrapController() : Controller() {
 
     private val logger = KotlinLogging.logger("StrapLogger")
 
-    private val uiView: UI by inject()
-
 
     private lateinit var rlVersion: String
     private lateinit var projectVersion: String
     private val bootstrapLoader = BootstrapLoader()
 
-    val bootstrap = bootstrapLoader.loadBootStrap()
+    private val bootstrap = bootstrapLoader.loadBootStrap()
     private var newBootstrap = Bootstrap()
     var artifacts = bootstrap.artifacts
-    private val libsDir = "runelite-client/build/lib"
     private val artifactsList = listOf(
             "runescape-api/build/libs", "runelite-client/build/libs", "injected-client/build/libs", "http-api/build/libs",
             "runelite-api/build/libs"
     )
 
-    fun processDependencyURL(url: String, a: Bootstrap.Artifact) {
+    private fun processDependencyURL(url: String, a: Bootstrap.Artifact) {
 
         FileUtils.copyURLToFile(
                 URL(url),
@@ -65,54 +63,56 @@ class StrapController() : Controller() {
         }
     }
 
+    fun removeDuplicateDependencies() {
+        val origSize = newBootstrap.artifacts.size
+        val a = newBootstrap.artifacts.toSet().toList().observable()
+        newBootstrap.artifacts.clear()
+        newBootstrap.artifacts.addAll(a)
+        fire(ProgressLabelUpdateEvent("Removed ${origSize - newBootstrap.artifacts.size} duplicate " +
+                "dependencies"))
+    }
+
     fun addStaticDependencies() {
         //bandage for static artifacts
-        runLater {
             newBootstrap.artifacts.addAll(bootstrap.artifacts.filter { artifact ->
                 artifact.path.contains("nexus.thatgamerblue.com")
                         || artifact.path.contains("natives")
             }.toList())
-        }
+
     }
 
 
     fun buildBootstrap(dir: File) {
-        runLater {
             newBootstrap.launcherJvm11Arguments = bootstrap.launcherJvm11Arguments
-            var client = File(
-                File(dir, "runelite-client/build/libs"),
-                "client-$projectVersion-${newBootstrap.client.extension}"
-            )
+        File(
+            File(dir, "runelite-client/build/libs"),
+            "client-$projectVersion-${newBootstrap.client.extension}"
+        )
 
             newBootstrap.artifacts.addAll(DependencyParser(dir).artifacts)
             newBootstrap.artifacts.forEach {
-                uiView.completion.value += 0.9 * ((newBootstrap.artifacts.indexOf(it) + 1) / newBootstrap.artifacts.size)
-                uiView.progressLabel.set(
-                    "Processing dependency " +
-                            "${newBootstrap.artifacts.indexOf(it)}/${newBootstrap.artifacts.size}"
-                )
+                fire(ProgressLabelUpdateEvent(
+                        "Processing dependency " +
+                                "${newBootstrap.artifacts.indexOf(it)}/${newBootstrap.artifacts.size}"))
+
                 processDependencyURL(it.path, it)
                 Bootstrap.validationQueue.add(it)
             }
-        }
     }
 
 
     fun strapArtifacts(dir: File) {
-        runLater {
             if (Files.exists(File("out").toPath())) {
                 FileUtils.cleanDirectory(File("out"))
                 FileUtils.deleteDirectory(File("out"))
             }
-            uiView.completion.value = .05
-            uiView.progressLabel.value = "attempting to strap artifacts from directory ${dir.name}"
+            logger.info {   "attempting to strap artifacts from directory ${dir.name}"}
             val f = File(dir, "runelite-client/build/resources/main/open.osrs.properties")
-            val fr: FileRepository
-            fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
+            val fr: FileRepository = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
                 .setMustExist(true).build()
 
 
-            val head = with(RevWalk(fr))
+        val head = with(RevWalk(fr))
             {
                 this.parseCommit(fr.getRef("refs/heads/master").leaf.objectId).name
             }
@@ -131,7 +131,7 @@ class StrapController() : Controller() {
             val minimumLauncherVersion = properties.getProperty("launcher.version")
             logger.info { "proceeding with runelite version $rlVersion and openOSRS version $projectVersion" }
             val oldArtifacts = newBootstrap.artifacts.filter { !it.name.contains("SNAPSHOT") }
-            uiView.completion.value = 0.1
+            //uiView.completion.value = 0.1
             /** val uploader = when (mode) {
             "nighlty" -> FTPUploader(user, p)
             else -> FTPUploader(user, p)
@@ -155,11 +155,9 @@ class StrapController() : Controller() {
                 newBootstrap.buildCommitProperty.value = head.toString()
 
             }
-        }
     }
 
     fun completeStrapping() {
-        runLater {
             fire(NewBootstrapEvent(newBootstrap))
             log.info(newBootstrap.toJSON(JsonBuilder()).toString())
             newBootstrap.save(Path.of("out/bootstrap-$mode.json"))
@@ -172,11 +170,9 @@ class StrapController() : Controller() {
                     "Bootstrapping is complete. Don't forget to PR the bootstrap file to the maven-repo"
                 )
             }
-        }
     }
 
     fun addBuildArtifacts(dir: File) {
-        runLater {
             Files.createDirectory(Paths.get("out"))
             val artifactFiles = HashMap<String, File>()
             for (s in artifactsList) {
@@ -234,7 +230,7 @@ class StrapController() : Controller() {
                 }
                 logger.info { "found artifact $s" }
             }
-        }
+
     }
 
     private fun showErrorMessage(e: Exception) {
@@ -260,19 +256,21 @@ class StrapController() : Controller() {
     }
 
     private fun validate(a: Bootstrap.Artifact): Boolean {
-        val file = File(a.path)
-        val size = file.length()
-        if (size != a.sizeProperty.value.toLong()) {
-            logger.error { "Unable to validate ${a.name}. has size of $size but the boostrap size is ${a.size}" }
-        }
-        try {
-            val stream = file.toURI()
-            val readAllBytes = Files.write(Paths.get(a.name), stream.toURL().readBytes())
 
-            if (DigestUtils.sha256Hex(readAllBytes.toFile().readBytes()) != a.hash) {
-                logger.error { "Hash missmatch on package ${a.name}" }
-                return false
+
+        try {
+            val file = createTempFile(a.name)
+            FileUtils.copyURLToFile(URL(a.path), file)
+            with (file) {
+                if (file.length() != a.sizeProperty.value.toLong()) {
+                    logger.error { "Unable to validate ${a.name}. has size of ${file.length()} but the boostrap size is ${a.size}" }
+                }
+                if (DigestUtils.sha256Hex(this.readBytes()) != a.hash) {
+                    logger.error { "Hash mismatch on package ${a.name}" }
+                    return false
+                }
             }
+
         } catch (e: Exception) {
             showErrorMessage(e)
         }

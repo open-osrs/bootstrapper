@@ -72,8 +72,27 @@ class Bootstrap : JsonModel {
 
 
     class Artifact : JsonModel {
+        /**
+         * Compares this object with the specified object for order. Returns zero if this object is equal
+         * to the specified [other] object, a negative number if it's less than [other], or a positive number
+         * if it's greater than [other].
+         */
+//        override fun compareTo(other: Artifact): Int {
+//             //To change body of created functions use File | Settings | File Templates.
+//        }
 
 
+        override fun equals(other: Any?): Boolean {
+            if (other is Artifact) {
+                return other.version == this.version && other.name == this.name
+                        && other.size == this.size && other.path == this.path
+            }
+            return false
+        }
+
+        override fun hashCode(): Int {
+            return name.hashCode() + version.hashCode() + size.hashCode() + path.hashCode()
+        }
 
         val hashProperty = SimpleStringProperty()
         var hash: String by hashProperty
@@ -90,8 +109,7 @@ class Bootstrap : JsonModel {
         val sizeProperty = SimpleStringProperty()
         var size: String by sizeProperty
 
-        val formattedSizeProperty =  SimpleStringProperty()
-        var formattedSize by formattedSizeProperty
+        val formattedSize: String get() = FileUtils.byteCountToDisplaySize(size.toLong())
 
         override fun updateModel(json: JsonObject) {
             with(json) {
@@ -100,7 +118,6 @@ class Bootstrap : JsonModel {
                 hash = string("hash")!!
                 path = string("path")!!
                 this@Artifact.size = string("size")!!
-                formattedSize = FileUtils.byteCountToDisplaySize(string("size")!!.toLong())
             }
         }
 
