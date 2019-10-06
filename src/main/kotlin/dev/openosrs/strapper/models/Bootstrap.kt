@@ -2,6 +2,7 @@ package dev.openosrs.strapper.models
 
 
 import com.google.common.collect.Queues
+import dev.openosrs.strapper.exceptions.InvalidArtifactComparison
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValue
@@ -77,9 +78,28 @@ class Bootstrap : JsonModel {
          * to the specified [other] object, a negative number if it's less than [other], or a positive number
          * if it's greater than [other].
          */
-//        override fun compareTo(other: Artifact): Int {
-//             //To change body of created functions use File | Settings | File Templates.
-//        }
+
+        fun olderVersion(other: Artifact): Artifact {
+            if (name != other.name)
+            {
+                InvalidArtifactComparison(Throwable("${this} is not the same artifact as $other"))
+            }
+
+            with (version.replace(".", "").toInt()) {
+                val otherVersion = other.version.replace(".", "").toInt()
+                if (this < otherVersion) {
+                    return this@Artifact
+                }
+                else if (otherVersion < this)
+                {
+                    return other
+                }
+
+                throw(Throwable("${this} is not the same artifact as $other"))
+
+            }
+        }
+
 
 
         override fun equals(other: Any?): Boolean {

@@ -42,7 +42,7 @@ class StrapController() : Controller() {
     private val bootstrapLoader = BootstrapLoader()
 
     private val bootstrap = bootstrapLoader.loadBootStrap()
-    private var newBootstrap = Bootstrap()
+    var newBootstrap = Bootstrap()
     var artifacts = bootstrap.artifacts
     private val artifactsList = listOf(
             "runescape-api/build/libs", "runelite-client/build/libs", "injected-client/build/libs", "http-api/build/libs",
@@ -79,6 +79,14 @@ class StrapController() : Controller() {
                         || artifact.path.contains("natives")
             }.toList())
 
+    }
+
+    fun useNewestVersions() {
+        for (a in newBootstrap.artifacts) {
+            newBootstrap.artifacts.filtered { Bootstrap.Artifact::name.equals(a.name) }.forEach { artifact ->
+                        newBootstrap.artifacts.remove(a.olderVersion(artifact))
+                    }
+        }
     }
 
 
@@ -256,10 +264,15 @@ class StrapController() : Controller() {
     }
 
     private fun validate(a: Bootstrap.Artifact): Boolean {
-
-
+        if (a.path.contains("github.com")) {
+            return true
+        }
         try {
-            val file = createTempFile(a.name)
+            val file: File = if (a.name.length < 3) {
+                createTempFile(a.name + "-nameWasTooShort")
+            } else {
+                createTempFile(a.name)
+            }
             FileUtils.copyURLToFile(URL(a.path), file)
             with (file) {
                 if (file.length() != a.sizeProperty.value.toLong()) {

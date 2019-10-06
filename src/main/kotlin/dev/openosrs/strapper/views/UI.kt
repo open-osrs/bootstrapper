@@ -41,6 +41,7 @@ class UI : View("OpenOSRS Bootstrapper") {
     private val model: Bootstrap.ArtifactModel by inject()
     private val enableValidate = SimpleBooleanProperty()
     private var enableBootstrap = SimpleBooleanProperty()
+    private var enableSaveButton = SimpleBooleanProperty()
 
     private lateinit var tabPane: TabPane
 
@@ -72,6 +73,7 @@ class UI : View("OpenOSRS Bootstrapper") {
                             controller.buildBootstrap(file)
                             controller.addBuildArtifacts(file)
                             controller.removeDuplicateDependencies()
+                            controller.useNewestVersions()
                             controller.completeStrapping()
                         }
                     }
@@ -85,8 +87,10 @@ class UI : View("OpenOSRS Bootstrapper") {
                     text = "Validate"
                     enableWhen { enableValidate }
                     setOnAction {
-                        runAsync {
+                        runAsyncWithProgress {
                             controller.validate()
+                        }.finally {
+                            enableSaveButton.value = true
                         }
                     }
                 }
@@ -102,10 +106,21 @@ class UI : View("OpenOSRS Bootstrapper") {
 
                 spacer { }
 
+                button {
+                    tooltip("Save the bootstrap")
+                    text = "Export"
+                    style {
+                        fontSize = Dimension(28.0, Dimension.LinearUnits.px)
+                    }
+                    enableWhen {
+                        enableSaveButton
+                    }
+                }
             }
             label("Select a mode to get strappin") {
                 style {
                     fontWeight = FontWeight.BOLD
+                    fontSize = Dimension(28.0, Dimension.LinearUnits.px)
                 }
                 subscribe<ProgressLabelUpdateEvent> { event ->
                     text = event.processedDependencies
@@ -135,6 +150,8 @@ class UI : View("OpenOSRS Bootstrapper") {
                         val bootstrap = event.bootstrap
                         val artifacts = bootstrap.artifacts
                         tab("New Bootstrap") {
+                            this.isClosable = false
+                            requestFocus()
                             enableValidate.value = true
                             tableview(artifacts) {
                                 column("Name", Bootstrap.Artifact::name).weightedWidth(25)
@@ -146,7 +163,11 @@ class UI : View("OpenOSRS Bootstrapper") {
                                 autosize()
 
                                 contextmenu {
-
+                                    item("Delete").action {
+                                        selectedItem?.apply {
+                                            controller.newBootstrap.artifacts.remove(this)
+                                        }
+                                    }
                                 }
                             }
                         }
