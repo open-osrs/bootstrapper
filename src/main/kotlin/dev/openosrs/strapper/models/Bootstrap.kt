@@ -2,6 +2,7 @@ package dev.openosrs.strapper.models
 
 
 import com.google.common.collect.Queues
+import dev.openosrs.strapper.exceptions.InvalidArtifactComparison
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValue
@@ -17,20 +18,24 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import javax.json.JsonArray
 
 class Bootstrap : JsonModel {
-
-
     val projectVersionProperty = SimpleStringProperty()
-    var projectVersion by projectVersionProperty
+    private var projectVersion: String by projectVersionProperty
+
     val minimumLauncherVersionProperty = SimpleStringProperty()
     var minimumLauncherVersion by minimumLauncherVersionProperty
+
     var launcherJvm11Arguments = JsonArray.EMPTY_JSON_ARRAY
     var launcherArguments = JsonArray.EMPTY_JSON_ARRAY
+
     var clientJvmArguments = JsonArray.EMPTY_JSON_ARRAY
     var clientJvm9Arguments = JsonArray.EMPTY_JSON_ARRAY
+
     val clientProperty = SimpleObjectProperty<Client>()
-    var client by clientProperty
+    var client: Client by clientProperty
+
     val buildCommitProperty = SimpleStringProperty()
     private var buildCommit by buildCommitProperty
+
     val artifacts: ObservableList<Artifact> = FXCollections.observableArrayList<Artifact>()
             .onChange {
                 if (it.next()) {
@@ -40,13 +45,13 @@ class Bootstrap : JsonModel {
 
     override fun updateModel(json: JsonObject) {
         with(json) {
-            projectVersion = string("projectVersion")
+            projectVersion = this.string("projectVersion")!!
             minimumLauncherVersion = string("minimumLauncherVersion")
             launcherJvm11Arguments = getJsonArray("launcherJvm11Arguments")
             launcherArguments = getJsonArray("launcherArguments")
             clientJvmArguments = getJsonArray("clientJvmArguments")
             clientJvm9Arguments = getJsonArray("clientJvm9Arguments")
-            client = jsonObject("client")?.toModel()
+            client = jsonObject("client")?.toModel()!!
             buildCommit = string("buildCommit")
             artifacts.setAll(getJsonArray("artifacts").toModel())
         }
@@ -68,6 +73,47 @@ class Bootstrap : JsonModel {
 
 
     class Artifact : JsonModel {
+        /**
+         * Compares this object with the specified object for order. Returns zero if this object is equal
+         * to the specified [other] object, a negative number if it's less than [other], or a positive number
+         * if it's greater than [other].
+         */
+
+        fun olderVersion(other: Artifact): Artifact {
+            if (name != other.name)
+            {
+                InvalidArtifactComparison(Throwable("${this} is not the same artifact as $other"))
+            }
+
+            with (version.replace(".", "").toInt()) {
+                val otherVersion = other.version.replace(".", "").toInt()
+                if (this < otherVersion) {
+                    return this@Artifact
+                }
+                else if (otherVersion < this)
+                {
+                    return other
+                }
+
+                throw(Throwable("${this} is not the same artifact as $other"))
+
+            }
+        }
+
+
+
+        override fun equals(other: Any?): Boolean {
+            if (other is Artifact) {
+                return other.version == this.version && other.name == this.name
+                        && other.size == this.size && other.path == this.path
+            }
+            return false
+        }
+
+        override fun hashCode(): Int {
+            return name.hashCode() + version.hashCode() + size.hashCode() + path.hashCode()
+        }
+
         val hashProperty = SimpleStringProperty()
         var hash: String by hashProperty
 
@@ -83,8 +129,7 @@ class Bootstrap : JsonModel {
         val sizeProperty = SimpleStringProperty()
         var size: String by sizeProperty
 
-        val formattedSizeProperty =  SimpleStringProperty()
-        var formattedSize by formattedSizeProperty
+        val formattedSize: String get() = FileUtils.byteCountToDisplaySize(size.toLong())
 
         override fun updateModel(json: JsonObject) {
             with(json) {
@@ -93,7 +138,6 @@ class Bootstrap : JsonModel {
                 hash = string("hash")!!
                 path = string("path")!!
                 this@Artifact.size = string("size")!!
-                formattedSize = FileUtils.byteCountToDisplaySize(string("size")!!.toLong())
             }
         }
 
@@ -120,7 +164,7 @@ class Bootstrap : JsonModel {
         }
 
         companion object {
-            val pattern = Pattern.compile("^(.+?)-(\\d.*?)\\.jar$")
+            val pattern: Pattern = Pattern.compile("^(.+?)-(\\d.*?)\\.jar$")!!
         }
     }
 
@@ -185,11 +229,8 @@ class Bootstrap : JsonModel {
 
 }
 
-fun Bootstrap.Artifact.sizePropertyChanged() {
-    sizeProperty.onChange {
-        formattedSize = FileUtils.byteCountToDisplaySize(size.toLong())
-    }
-}
+
+
 
 
 
