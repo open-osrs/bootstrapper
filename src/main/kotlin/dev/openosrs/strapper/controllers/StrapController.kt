@@ -259,6 +259,7 @@ class StrapController() : Controller() {
 
     fun validate() {
         while (Bootstrap.validationQueue.isNotEmpty()) {
+            fire(ProgressLabelUpdateEvent("Validating hashes: ${Bootstrap.validationQueue.size} remaining"))
             validate(Bootstrap.validationQueue.poll())
         }
     }

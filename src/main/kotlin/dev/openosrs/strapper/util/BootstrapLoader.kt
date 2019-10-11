@@ -8,7 +8,7 @@ import java.nio.charset.Charset
 
 
 class BootstrapLoader {
-    private val bootstrapUrl = "https://raw.githubusercontent.com/runelite-extended/maven-repo/master/bootstrap.json"
+    private val bootstrapUrl = "https://raw.githubusercontent.com/open-osrs/hosting/master/bootstrap-stable.json"
     private val jsonText = URL(bootstrapUrl).readText(Charset.defaultCharset())
 
 
