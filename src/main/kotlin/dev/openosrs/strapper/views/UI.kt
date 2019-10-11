@@ -10,6 +10,9 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.collections.FXCollections
 import javafx.scene.control.TabPane
+import javafx.scene.effect.BlurType
+import javafx.scene.effect.Effect
+import javafx.scene.effect.Glow
 import javafx.scene.layout.VBox
 import javafx.scene.text.FontWeight
 import javafx.stage.DirectoryChooser

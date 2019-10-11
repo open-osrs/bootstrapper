@@ -6,14 +6,12 @@ import dev.openosrs.strapper.events.NewBootstrapEvent
 import dev.openosrs.strapper.models.Bootstrap
 import dev.openosrs.strapper.util.BootstrapLoader
 import dev.openosrs.strapper.util.DependencyParser
-import dev.openosrs.strapper.views.UI
 import mu.KotlinLogging
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.io.FileUtils
-import org.apache.commons.lang3.ArrayUtils
 import org.eclipse.jgit.errors.RepositoryNotFoundException
+import org.eclipse.jgit.internal.storage.file.FileRepository
 import org.eclipse.jgit.revwalk.RevWalk
-import org.eclipse.jgit.storage.file.FileRepository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import tornadofx.*
 import java.io.File
@@ -117,12 +115,12 @@ class StrapController() : Controller() {
             logger.info {   "attempting to strap artifacts from directory ${dir.name}"}
             val f = File(dir, "runelite-client/build/resources/main/open.osrs.properties")
             val fr: FileRepository = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
-                .setMustExist(true).build()
+                .setMustExist(true).build() as FileRepository
 
 
         val head = with(RevWalk(fr))
             {
-                this.parseCommit(fr.getRef("refs/heads/master").leaf.objectId).name
+                this.parseCommit(fr.findRef("refs/heads/master").leaf.objectId).name
             }
             logger.info { "proceeding with git commit $head" }
             val properties = Properties()
@@ -250,7 +248,7 @@ class StrapController() : Controller() {
         return try {
             val fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
                     .setMustExist(true).build()
-            val head = fr.getRef("refs/heads/master")
+            val head = fr.findRef("refs/heads/master")
             true
         } catch (e: RepositoryNotFoundException) {
             false
@@ -259,6 +257,7 @@ class StrapController() : Controller() {
 
     fun validate() {
         while (Bootstrap.validationQueue.isNotEmpty()) {
+            fire(ProgressLabelUpdateEvent("Validating hashes: ${Bootstrap.validationQueue.size} remaining"))
             validate(Bootstrap.validationQueue.poll())
         }
     }
