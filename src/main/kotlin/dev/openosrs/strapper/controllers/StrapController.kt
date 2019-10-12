@@ -1,8 +1,10 @@
 package dev.openosrs.strapper.controllers
 
 
+import com.g00fy2.versioncompare.Version
 import dev.openosrs.strapper.events.ProgressLabelUpdateEvent
 import dev.openosrs.strapper.events.NewBootstrapEvent
+import dev.openosrs.strapper.exceptions.InvalidArtifactComparison
 import dev.openosrs.strapper.models.Bootstrap
 import dev.openosrs.strapper.util.BootstrapLoader
 import dev.openosrs.strapper.util.DependencyParser
@@ -39,7 +41,7 @@ class StrapController() : Controller() {
     private lateinit var projectVersion: String
     private val bootstrapLoader = BootstrapLoader()
 
-    private val bootstrap = bootstrapLoader.loadBootStrap()
+    val bootstrap = bootstrapLoader.loadBootStrap()
     var newBootstrap = Bootstrap()
     var artifacts = bootstrap.artifacts
     private val artifactsList = listOf(
@@ -63,7 +65,7 @@ class StrapController() : Controller() {
 
     fun removeDuplicateDependencies() {
         val origSize = newBootstrap.artifacts.size
-        val a = newBootstrap.artifacts.toSet().toList().observable()
+        val a = newBootstrap.artifacts.toSet().toList().asObservable()
         newBootstrap.artifacts.clear()
         newBootstrap.artifacts.addAll(a)
         fire(ProgressLabelUpdateEvent("Removed ${origSize - newBootstrap.artifacts.size} duplicate " +
@@ -80,11 +82,19 @@ class StrapController() : Controller() {
     }
 
     fun useNewestVersions() {
+        val oldVersions = ArrayList<Bootstrap.Artifact>()
         for (a in newBootstrap.artifacts) {
-            newBootstrap.artifacts.filtered { Bootstrap.Artifact::name.equals(a.name) }.forEach { artifact ->
-                        newBootstrap.artifacts.remove(a.olderVersion(artifact))
-                    }
-        }
+           for (b in newBootstrap.artifacts) {
+               if (a.name == b.name) {
+                   logger.debug {  "${a.version} -> ${b.version}: ${Version(a.version).isHigherThan(b.version)}" }
+                   if (Version(a.version).isHigherThan(b.version)) {
+                       oldVersions.add(b)
+                   }
+               }
+               }
+           }
+        fire(ProgressLabelUpdateEvent("Removed ${oldVersions.size} outdated dependencies"))
+        newBootstrap.artifacts.removeAll(oldVersions)
     }
 
 
@@ -99,7 +109,7 @@ class StrapController() : Controller() {
             newBootstrap.artifacts.forEach {
                 fire(ProgressLabelUpdateEvent(
                         "Processing dependency " +
-                                "${newBootstrap.artifacts.indexOf(it)}/${newBootstrap.artifacts.size}"))
+                                "${newBootstrap.artifacts.indexOf(it)}/${newBootstrap.artifacts.size - 1}"))
 
                 processDependencyURL(it.path, it)
                 Bootstrap.validationQueue.add(it)
@@ -123,6 +133,7 @@ class StrapController() : Controller() {
                 this.parseCommit(fr.findRef("refs/heads/master").leaf.objectId).name
             }
             logger.info { "proceeding with git commit $head" }
+            fire(ProgressLabelUpdateEvent("Proceeding with git commit $head"))
             val properties = Properties()
             try {
                 properties.load(f.inputStream())
@@ -136,7 +147,6 @@ class StrapController() : Controller() {
             projectVersion = properties.getProperty("open.osrs.version")
             val minimumLauncherVersion = properties.getProperty("launcher.version")
             logger.info { "proceeding with runelite version $rlVersion and openOSRS version $projectVersion" }
-            val oldArtifacts = newBootstrap.artifacts.filter { !it.name.contains("SNAPSHOT") }
             //uiView.completion.value = 0.1
             /** val uploader = when (mode) {
             "nighlty" -> FTPUploader(user, p)
@@ -166,7 +176,10 @@ class StrapController() : Controller() {
     fun completeStrapping() {
             fire(NewBootstrapEvent(newBootstrap))
             log.info(newBootstrap.toJSON(JsonBuilder()).toString())
-            newBootstrap.save(Path.of("out/bootstrap-$mode.json"))
+            with (Path.of("out/bootstrap-$mode.json")) {
+                toFile().writeText(newBootstrap.toJSON().toPrettyString())
+            }
+            //newBootstrap.toJSON().toPrettyString()Path.of("out/bootstrap-$mode.json"))
             if (mode == "nightly") {
                 // uploader.uploadStrap(file.toFile())
             }
@@ -195,9 +208,9 @@ class StrapController() : Controller() {
                     val name = fName
                     val file = artifactFiles[fName]!!
                     Files.copy(file.toPath(), File("out", file.name).toPath())
-                    var size = file.length().toString()
-                    var path = "$artifactRepo$mode/${file.name}"
-                    var hash = DigestUtils.sha256Hex(file.readBytes())
+                    val size = file.length().toString()
+                    val path = "$artifactRepo$mode/${file.name}"
+                    val hash = DigestUtils.sha256Hex(file.readBytes())
                     logger.info { "name: $name \n size: $size \n path: $path \n $hash: $hash \n" }
                     with(Bootstrap.Artifact()) {
                         this.name = name
@@ -248,7 +261,6 @@ class StrapController() : Controller() {
         return try {
             val fr = FileRepositoryBuilder().setMustExist(true).setGitDir(File(dir, "\\.git"))
                     .setMustExist(true).build()
-            val head = fr.findRef("refs/heads/master")
             true
         } catch (e: RepositoryNotFoundException) {
             false
@@ -257,7 +269,8 @@ class StrapController() : Controller() {
 
     fun validate() {
         while (Bootstrap.validationQueue.isNotEmpty()) {
-            fire(ProgressLabelUpdateEvent("Validating hashes: ${Bootstrap.validationQueue.size} remaining"))
+            fire(ProgressLabelUpdateEvent("Validating hashes: ${Bootstrap.validationQueue.size - 1}" +
+                    " remaining"))
             validate(Bootstrap.validationQueue.poll())
         }
     }
@@ -275,7 +288,8 @@ class StrapController() : Controller() {
             FileUtils.copyURLToFile(URL(a.path), file)
             with (file) {
                 if (file.length() != a.sizeProperty.value.toLong()) {
-                    logger.error { "Unable to validate ${a.name}. has size of ${file.length()} but the boostrap size is ${a.size}" }
+                    logger.error { "Unable to validate ${a.name}. has size of ${file.length()}" +
+                            " but the boostrap size is ${a.size}" }
                 }
                 if (DigestUtils.sha256Hex(this.readBytes()) != a.hash) {
                     logger.error { "Hash mismatch on package ${a.name}" }

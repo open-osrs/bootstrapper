@@ -1,8 +1,8 @@
 package dev.openosrs.strapper.views
 
 import dev.openosrs.strapper.controllers.StrapController
-import dev.openosrs.strapper.events.ProgressLabelUpdateEvent
 import dev.openosrs.strapper.events.NewBootstrapEvent
+import dev.openosrs.strapper.events.ProgressLabelUpdateEvent
 import dev.openosrs.strapper.models.Bootstrap
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
@@ -10,13 +10,15 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.collections.FXCollections
 import javafx.scene.control.TabPane
-import javafx.scene.effect.BlurType
-import javafx.scene.effect.Effect
-import javafx.scene.effect.Glow
+import javafx.scene.layout.BackgroundFill
 import javafx.scene.layout.VBox
+import javafx.scene.paint.Paint
 import javafx.scene.text.FontWeight
 import javafx.stage.DirectoryChooser
 import tornadofx.*
+import java.awt.Color
+import javax.swing.Painter
+import kotlin.streams.toList
 
 class UI : View("OpenOSRS Bootstrapper") {
     private val controller by inject<StrapController>()
@@ -31,14 +33,14 @@ class UI : View("OpenOSRS Bootstrapper") {
 
     private val modeOptions = FXCollections.observableArrayList(StrapMode.values().toList())
     private val mode = SimpleObjectProperty<StrapMode>()
-            .onChange {
-                if (it != null) {
-                    StrapController.mode = it.text
-                }
+        .onChange {
+            if (it != null) {
+                StrapController.mode = it.text
             }
+        }
 
     var completion = SimpleDoubleProperty(0.0)
-    var progressLabel = SimpleStringProperty("Click Update to start")
+    private var progressLabel = SimpleStringProperty("Click Update to start")
 
 
     private val model: Bootstrap.ArtifactModel by inject()
@@ -134,56 +136,113 @@ class UI : View("OpenOSRS Bootstrapper") {
 
 
 
-                tabPane = tabpane {
-                    tab("Original Bootstrap") {
-
-                        tableview(controller.artifacts) {
-
-                            column("Name", Bootstrap.Artifact::name).weightedWidth(25)
-                            column("Version", Bootstrap.Artifact::version).weightedWidth((25))
-                            readonlyColumn("Size", Bootstrap.Artifact::formattedSize).weightedWidth(.1)
-                            column("Path", Bootstrap.Artifact::path)
-                            column("Hash", Bootstrap.Artifact::hash).weightedWidth(.1)
-                            autosize()
-                            bindSelected(model)
+            tabPane = tabpane {
+                tab("Original Bootstrap") {
+                    drawer {
+                        style {
+                            accentColor = javafx.scene.paint.Color.RED
                         }
-                    }
-
-                    subscribe<NewBootstrapEvent> { event ->
-                        val bootstrap = event.bootstrap
-                        val artifacts = bootstrap.artifacts
-                        tab("New Bootstrap") {
-                            this.isClosable = false
-                            requestFocus()
-                            enableValidate.value = true
+                        val artifacts = controller.artifacts
+                        val jvmArguments = controller.bootstrap.launcherArguments.asObservable()
+                        val jvm11Arguments = controller.bootstrap.launcherJvm11Arguments.asObservable()
+                        val clientJvmArguments = controller.bootstrap.clientJvmArguments.asObservable()
+                        val clientJvm9Arguments = controller.bootstrap.clientJvm9Arguments.asObservable()
+                        item("Artifacts", expanded = true) {
                             tableview(artifacts) {
-                                column("Name", Bootstrap.Artifact::name).weightedWidth(25)
-                                column("Version", Bootstrap.Artifact::version).weightedWidth((25))
-                                readonlyColumn("Size", Bootstrap.Artifact::formattedSize).weightedWidth(.1)
-                                column("Path", Bootstrap.Artifact::path)
-                                column("Hash", Bootstrap.Artifact::hash).weightedWidth(.1)
+                                column("Name", Bootstrap.Artifact::name)
+                                column("Version", Bootstrap.Artifact::version)
+                                readonlyColumn("Size", Bootstrap.Artifact::formattedSize)
+                                column("Path", Bootstrap.Artifact::path).maxWidth(150)
+                                column("Hash", Bootstrap.Artifact::hash).maxWidth(150)
                                 bindSelected(model)
-                                autosize()
-
-                                contextmenu {
-                                    item("Delete").action {
-                                        selectedItem?.apply {
-                                            controller.newBootstrap.artifacts.remove(this)
-                                        }
-                                    }
-                                }
+                            }
+                        }
+                        item("Java Launcher args") {
+                            listview(jvmArguments) {
+                            }
+                        }
+                        item("Java 11 Launcher args") {
+                            listview(jvm11Arguments) {
+                            }
+                        }
+                        item("Client Java 11 arguments") {
+                            listview(clientJvmArguments)
+                        }
+                        item("Client Java 9 arguments") {
+                            listview(clientJvm9Arguments) {
                             }
                         }
                     }
                 }
 
+                subscribe<NewBootstrapEvent> { event ->
+                    val bootstrap = event.bootstrap
+                    val artifacts = bootstrap.artifacts
+                    val client = bootstrap.client
+                    val jvm11Arguments = bootstrap.launcherJvm11Arguments.asObservable()
+                    val jvmArguments = bootstrap.launcherArguments.asObservable()
+                    val clientJvmArguments = bootstrap.clientJvmArguments.asObservable()
+                    val clientJvm9Arguments = bootstrap.clientJvm9Arguments.asObservable()
+                    tab("New Bootstrap") {
+                        this.isClosable = false
+                        requestFocus()
+                        enableValidate.value = true
 
+                        drawer {
+                            item("Artifacts", expanded = true) {
+                                tableview(artifacts) {
+                                    style {
+                                        if (controller.bootstrap.artifacts.stream()
+                                                .map(Bootstrap.Artifact::name).toList()
+                                                .contains(selectedItem?.name)) {
+                                            baseColor = javafx.scene.paint.Color.SPRINGGREEN
+                                        }
+                                    }
+                                    column("Name", Bootstrap.Artifact::name)
+                                    column("Version", Bootstrap.Artifact::version)
+                                    readonlyColumn("Size", Bootstrap.Artifact::formattedSize)
+                                    column("Path", Bootstrap.Artifact::path).maxWidth(150)
+                                    column("Hash", Bootstrap.Artifact::hash).maxWidth(150)
+                                    bindSelected(model)
 
-                autosize()
+                                    contextmenu {
+                                        item("Copy").action {
+                                            clipboard.putString(selectedItem.toString())
+                                        }
+                                        item("Delete").action {
+                                            selectedItem?.apply {
+                                                controller.newBootstrap.artifacts.remove(this)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            item("Java Launcher args") {
+                                listview(jvmArguments) {
+                                }
+                            }
+                            item("Java 11 Launcher args") {
+                                listview(jvm11Arguments) {
+                                }
+                            }
+                            item("Client Java 11 arguments") {
+                                listview(clientJvmArguments)
+                            }
+                            item("Client Java 9 arguments") {
+                                listview(clientJvm9Arguments) {
+                                }
+                            }
+                        }
+                    }
+                }
             }
+
+
+
         }
-
-
     }
+
+
+}
 
 

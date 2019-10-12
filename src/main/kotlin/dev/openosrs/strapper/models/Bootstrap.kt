@@ -3,11 +3,13 @@ package dev.openosrs.strapper.models
 
 import com.google.common.collect.Queues
 import dev.openosrs.strapper.exceptions.InvalidArtifactComparison
+import javafx.beans.property.SimpleListProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
+import mu.KotlinLogging
 import org.apache.commons.io.FileUtils
 import tornadofx.*
 import java.util.regex.Pattern
@@ -17,7 +19,11 @@ import tornadofx.setValue
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.json.JsonArray
 
+
+val logger = KotlinLogging.logger("BootstrapModelLogger")
+
 class Bootstrap : JsonModel {
+
     val projectVersionProperty = SimpleStringProperty()
     private var projectVersion: String by projectVersionProperty
 
@@ -27,8 +33,8 @@ class Bootstrap : JsonModel {
     var launcherJvm11Arguments = JsonArray.EMPTY_JSON_ARRAY
     var launcherArguments = JsonArray.EMPTY_JSON_ARRAY
 
-    var clientJvmArguments = JsonArray.EMPTY_JSON_ARRAY
-    var clientJvm9Arguments = JsonArray.EMPTY_JSON_ARRAY
+    var clientJvmArguments: JsonArray = JsonArray.EMPTY_JSON_ARRAY!!
+    var clientJvm9Arguments: JsonArray = JsonArray.EMPTY_JSON_ARRAY!!
 
     val clientProperty = SimpleObjectProperty<Client>()
     var client: Client by clientProperty
@@ -39,7 +45,14 @@ class Bootstrap : JsonModel {
     val artifacts: ObservableList<Artifact> = FXCollections.observableArrayList<Artifact>()
             .onChange {
                 if (it.next()) {
-                    validationQueue.addAll(it.addedSubList)
+                    val elements = it.addedSubList
+                    if (!it.wasRemoved() and !validationQueue.containsAll(elements)) {
+                        for (e in elements) {
+                            if (validationQueue.contains(e)) {
+                                validationQueue.add(e)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -82,11 +95,12 @@ class Bootstrap : JsonModel {
         fun olderVersion(other: Artifact): Artifact {
             if (name != other.name)
             {
-                InvalidArtifactComparison(Throwable("${this} is not the same artifact as $other"))
+                throw(InvalidArtifactComparison(Throwable("${this} is not the same artifact as $other")))
             }
 
-            with (version.replace(".", "").toInt()) {
-                val otherVersion = other.version.replace(".", "").toInt()
+            with (version.replace(".", "")) {
+                val otherVersion = other.version.replace(".", "")
+                logger.info(this.toCharArray().toString())
                 if (this < otherVersion) {
                     return this@Artifact
                 }
@@ -95,7 +109,7 @@ class Bootstrap : JsonModel {
                     return other
                 }
 
-                throw(Throwable("${this} is not the same artifact as $other"))
+                throw(InvalidArtifactComparison(Throwable("${this} is not the same artifact as $other")))
 
             }
         }
@@ -223,7 +237,7 @@ class Bootstrap : JsonModel {
     }
 
     companion object {
-        var validationQueue: ConcurrentLinkedQueue<Artifact> = Queues.newConcurrentLinkedQueue<Artifact>()
+        var validationQueue: ConcurrentLinkedQueue<Artifact> = ConcurrentLinkedQueue<Artifact>()
     }
 
 
