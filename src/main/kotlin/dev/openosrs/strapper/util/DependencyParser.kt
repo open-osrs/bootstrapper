@@ -4,6 +4,7 @@ import dev.openosrs.strapper.models.Bootstrap
 import mu.KotlinLogging
 import java.io.File
 
+
 class DependencyParser(dir: File) {
     private val logger = KotlinLogging.logger("DepParser")
     private var stringDependencies = ArrayList<String>()
@@ -20,14 +21,14 @@ class DependencyParser(dir: File) {
 
         }
         stringDependencies.forEach {
-            var name = it.split(":")[1]
-            var group = it.split(":")[0]
-            var version = it.split(":")[2]
+            val name = it.split(":")[1]
+            val group = it.split(":")[0]
+            val version = it.split(":")[2]
             if (!group.contains("runelite")) {
-                var path = "https://repo.maven.apache.org/maven2/" + group.replace(".", "/") +
+                val path = "https://repo.maven.apache.org/maven2/" + group.replace(".", "/") +
                         "/${name}/$version/${name}-$version.jar"
                 logger.info { path }
-                var a = Bootstrap.Artifact()
+                val a = Bootstrap.Artifact()
                 a.name = name
                 a.version = version
                 a.path = path
