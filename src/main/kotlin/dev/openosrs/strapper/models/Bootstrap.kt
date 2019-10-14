@@ -159,7 +159,7 @@ class Bootstrap : JsonModel {
 
         override fun toJSON(json: JsonBuilder) {
             with (json) {
-                add("name", name + version)
+                add("name", path.split("/")[path.split("/").size - 1])
                 add("path", path)
                 add("size", size)
                 add("hash", hash)
