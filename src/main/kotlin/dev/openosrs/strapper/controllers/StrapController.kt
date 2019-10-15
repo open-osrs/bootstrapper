@@ -195,7 +195,7 @@ class StrapController() : Controller() {
             Files.createDirectory(Paths.get("out"))
             val artifactFiles = HashMap<String, File>()
             for (s in artifactsList) {
-                val artifactRepo = "https://github.com/runelite-extended/hosting/raw/master/"
+                val artifactRepo = "https://github.com/open-osrs/hosting/raw/master/"
                 if (s.contains("runelite-client")) {
                     val fName = "${s.replace("runelite-", "")
                         .split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
