@@ -98,11 +98,17 @@ class StrapController() : Controller() {
     }
 
 
+    private val clientArtifactPrefix: String
+        get() {
+            val clientArtifactPrefix = "runelite-client-"
+            return clientArtifactPrefix
+        }
+
     fun buildBootstrap(dir: File) {
             newBootstrap.launcherJvm11Arguments = bootstrap.launcherJvm11Arguments
         File(
             File(dir, "runelite-client/build/libs"),
-            "client-$projectVersion-${newBootstrap.client.extension}"
+            "$clientArtifactPrefix$projectVersion-${newBootstrap.client.extension}"
         )
 
             newBootstrap.artifacts.addAll(DependencyParser(dir).artifacts)
@@ -197,8 +203,7 @@ class StrapController() : Controller() {
             for (s in artifactsList) {
                 val artifactRepo = "https://github.com/open-osrs/hosting/raw/master/"
                 if (s.contains("runelite-client")) {
-                    val fName = "${s.replace("runelite-", "")
-                        .split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
+                    val fName = "${s.split("/")[0]}-$rlVersion.${bootstrap.client.extension}"
                     try {
                         artifactFiles[fName] = File(File(dir, s), fName)
                     } catch (e: FileNotFoundException) {

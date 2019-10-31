@@ -39,7 +39,6 @@ class UI : View("OpenOSRS Bootstrapper") {
             }
         }
 
-    var completion = SimpleDoubleProperty(0.0)
     private var progressLabel = SimpleStringProperty("Click Update to start")
 
 
